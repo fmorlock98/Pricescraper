@@ -161,6 +161,56 @@ def print_descriptive_stats(df):
                     print(f"    75th percentile: {refrigerant_data.quantile(0.75):.2f} EUR")
                     print(f"    IQR: {refrigerant_data.quantile(0.75) - refrigerant_data.quantile(0.25):.2f} EUR")
     
+    # Price by configuration and rated power groups
+    if 'Price' in df.columns and 'Configuration_Group' in df.columns and 'Rated Power low T [kW]' in df.columns:
+        print(f"\nPRICE BY CONFIGURATION AND RATED POWER GROUPS:")
+        print("="*100)
+        
+        # Create power groups
+        df['Power_Group'] = pd.cut(df['Rated Power low T [kW]'], 
+                                  bins=[0, 6, 9, float('inf')], 
+                                  labels=['<6kW', '6-9kW', '>9kW'],
+                                  include_lowest=True)
+        
+        # Get all configurations
+        configurations = df['Configuration_Group'].unique()
+        power_groups = ['<6kW', '6-9kW', '>9kW']
+        
+        # Create header
+        header = f"{'Configuration':<30} {'<6kW':<15} {'6-9kW':<15} {'>9kW':<15}"
+        print(header)
+        print("-" * 100)
+        
+        # For each configuration, show average price and count for each power group
+        for config in sorted(configurations):
+            config_data = df[df['Configuration_Group'] == config]
+            row = f"{config:<30}"
+            
+            for power_group in power_groups:
+                group_data = config_data[config_data['Power_Group'] == power_group]
+                if len(group_data) > 0:
+                    avg_price = group_data['Price'].mean()
+                    count = len(group_data)
+                    row += f"{avg_price:.0f}€ (n={count})".ljust(15)
+                else:
+                    row += "N/A".ljust(15)
+            
+            print(row)
+        
+        # Add total row
+        print("-" * 100)
+        total_row = f"{'TOTAL':<30}"
+        for power_group in power_groups:
+            group_data = df[df['Power_Group'] == power_group]
+            if len(group_data) > 0:
+                avg_price = group_data['Price'].mean()
+                count = len(group_data)
+                total_row += f"{avg_price:.0f}€ (n={count})".ljust(15)
+            else:
+                total_row += "N/A".ljust(15)
+        print(total_row)
+        print("="*100)
+    
     # SCOP by refrigerant type
     if 'SCOP' in df.columns and 'Refrigerant' in df.columns:
         print(f"\nSCOP BY REFRIGERANT TYPE:")
@@ -324,6 +374,98 @@ def create_visualizations(df, figures_dir):
         ax.grid(True, alpha=0.3, axis='y')
         plt.tight_layout()
         plt.savefig(figures_dir / 'price_by_brand.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # 4b. Price per kW by Brand - Colored Box Plot only, ordered from most to least expensive per kW
+    if 'Price' in df.columns and 'Manufacturer' in df.columns and 'Rated Power low T [kW]' in df.columns:
+        # Create price per kW column
+        df['Price_per_kW'] = df['Price'] / df['Rated Power low T [kW]']
+        
+        # Use the same manufacturer mapping as above
+        manufacturer_map = {
+            'bosch thermotechnik gmbh': 'Bosch',
+            'viessmann climate solutions se': 'Viessmann',
+            'ait-deutschland gmbh': 'AIT',
+            'daikin europe n.v.': 'Daikin',
+            'bosch thermotechnik gmbh (buderus)': 'Buderus',
+            'samsung electronics air conditioner europe b.v.': 'Samsung',
+            'wolf gmbh': 'Wolf',
+            'mitsubishi electric air conditioning systems europe ltd': 'Mitsubishi',
+            'panasonic marketing europe gmbh': 'Panasonic',
+            'lg electronics inc.': 'LG',
+            'johnson controls-hitachi air-conditioning spain': 'Johnson / Hitachi',
+            'johnson controls-hitachi airconditionning spain': 'Johnson / Hitachi',
+            'johnson controls-hitachi air conditioning spain': 'Johnson / Hitachi',
+            'toshiba air conditioning': 'Toshiba',
+            'vaillant gmbh': 'Vaillant',
+        }
+        # Display label mapping for correct capitalization
+        display_label_map = {
+            'Bosch': 'Bosch',
+            'Viessmann': 'Viessmann',
+            'AIT': 'AIT',
+            'Daikin': 'Daikin',
+            'Buderus': 'Buderus',
+            'Samsung': 'Samsung',
+            'Wolf': 'Wolf',
+            'Mitsubishi': 'Mitsubishi',
+            'Panasonic': 'Panasonic',
+            'LG': 'LG',
+            'Johnson / Hitachi': 'Johnson / Hitachi',
+            'Toshiba': 'Toshiba',
+            'Vaillant': 'Vaillant',
+        }
+        # Standardize manufacturer names (strip, lower)
+        df = df.copy()
+        df['Manufacturer_clean'] = df['Manufacturer'].astype(str).str.strip().str.lower()
+        df['Manufacturer_short'] = df['Manufacturer_clean'].map(manufacturer_map).fillna(df['Manufacturer_clean'])
+        # Force Johnson / Hitachi if both words are present
+        df['Manufacturer_short'] = df['Manufacturer_short'].apply(lambda x: 'Johnson / Hitachi' if ('johnson' in x and 'hitachi' in x) else x)
+        # Calculate mean price per kW and counts for all manufacturers (short names)
+        mean_price_per_kw = df.groupby('Manufacturer_short')['Price_per_kW'].mean().sort_values(ascending=False)
+        counts = df['Manufacturer_short'].value_counts()
+        all_manufacturers = mean_price_per_kw.index.tolist()  # All manufacturers ordered by mean price per kW
+        # Create green color palette (darker for expensive, lighter for cheap)
+        import matplotlib.ticker as mticker
+        green_palette = sns.light_palette("seagreen", n_colors=len(all_manufacturers), reverse=True)
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(18, 10))
+        box_plot = sns.boxplot(data=df, x='Manufacturer_short', y='Price_per_kW', 
+                              order=all_manufacturers, palette=green_palette, ax=ax)
+        # Add mean price per kW and n annotations
+        for i, manufacturer in enumerate(all_manufacturers):
+            avg_price_per_kw = mean_price_per_kw[manufacturer]
+            n = counts[manufacturer]
+            # Mean price per kW annotation (smaller font)
+            ax.annotate(f"{int(round(avg_price_per_kw)):,}".replace(",", "'"),
+                        xy=(i, avg_price_per_kw),
+                        xytext=(0, 0),
+                        textcoords='offset points',
+                        ha='center', va='center', fontweight='bold', fontsize=13,
+                        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, linewidth=2))
+            # n = ... annotation below the box
+            y_min = df[df['Manufacturer_short'] == manufacturer]['Price_per_kW'].min()
+            ax.annotate(f"n = {n}",
+                        xy=(i, y_min),
+                        xytext=(0, -30),
+                        textcoords='offset points',
+                        ha='center', va='center', fontsize=11, fontweight='bold', color='black',
+                        bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, linewidth=1))
+        # Adjust y-limits to ensure n annotations are visible
+        y_min_all = df['Price_per_kW'].min()
+        y_max_all = df['Price_per_kW'].max()
+        y_range = y_max_all - y_min_all
+        ax.set_ylim([y_min_all - 0.10 * y_range, y_max_all + 0.05 * y_range])
+        ax.set_title('Price per kW Distribution by Manufacturer (Most to Least Expensive per kW)', fontsize=22, fontweight='bold', pad=20)
+        ax.set_xlabel('Manufacturer', fontsize=18, fontweight='bold')
+        ax.set_ylabel('Price per kW (EUR/kW)', fontsize=18, fontweight='bold', labelpad=20)
+        # Use display_label_map for correct capitalization
+        ax.set_xticklabels([display_label_map.get(manufacturer_map.get(m, m.title()) if not (('johnson' in m and 'hitachi' in m)) else 'Johnson / Hitachi', m) for m in all_manufacturers], rotation=45, ha='right', fontsize=16, fontweight='bold')
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x):,}".replace(",", "'")))
+        ax.tick_params(axis='y', labelsize=16)
+        ax.grid(True, alpha=0.3, axis='y')
+        plt.tight_layout()
+        plt.savefig(figures_dir / 'price_per_kw_by_brand.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     # 5. Noise Distribution - Histogram only
