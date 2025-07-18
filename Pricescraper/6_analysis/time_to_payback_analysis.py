@@ -214,7 +214,7 @@ def create_payback_plot(result_df, figures_dir):
     
     # Create plot for each scenario
     scenarios = ['1_bedroom', '2-3_bedroom', '4+_bedroom']
-    scenario_labels = ['1 Bedroom\n(8,000 kWh/year)', '2-3 Bedroom\n(12,000 kWh/year)', '4+ Bedroom\n(17,000 kWh/year)']
+    scenario_labels = ['1 Bedroom\n(8\'000 kWh/year)', '2-3 Bedroom\n(12\'000 kWh/year)', '4+ Bedroom\n(17\'000 kWh/year)']
     
     for i, (scenario, label) in enumerate(zip(scenarios, scenario_labels)):
         # Filter data for this scenario
