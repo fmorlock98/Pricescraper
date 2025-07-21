@@ -8,8 +8,8 @@ import matplotlib.colors as mcolors
 # --- PARAMETERS ---
 GAS_BOILER_COSTS = {
     'low': 2500,    # <6kW
-    'medium': 3500, # 6-9kW
-    'high': 4500    # >9kW
+    'medium': 3000, # 6-9kW
+    'high': 3500    # >9kW
 }
 GAS_PRICE = 0.11
 ELECTRICITY_PRICE = 0.29
