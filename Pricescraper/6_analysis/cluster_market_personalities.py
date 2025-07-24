@@ -318,7 +318,7 @@ def determine_cluster_archetype(profile, df_all):
     HIGH_THRESHOLD = 0.67
     
     # Categorize characteristics
-    price_cat = "Budget" if price_pct < LOW_THRESHOLD else ("Premium" if price_pct > HIGH_THRESHOLD else "Mid-Range")
+    price_cat = "Budget" if price_pct < LOW_THRESHOLD else ("Premium" if price_pct > HIGH_THRESHOLD else "Low-Temperature")
     efficiency_cat = "High-Efficiency" if scop_pct > HIGH_THRESHOLD else ("Standard" if scop_pct > LOW_THRESHOLD else "Basic")
     # Fix noise categorization: low noise_pct = quiet (below average noise), high noise_pct = noisy (above average noise)
     noise_cat = "Quiet" if noise_pct < LOW_THRESHOLD else ("Standard" if noise_pct < HIGH_THRESHOLD else "Noisy")
@@ -337,8 +337,8 @@ def determine_cluster_archetype(profile, df_all):
         primary_traits.append("Budget")
     elif price_cat == "Premium":
         primary_traits.append("Premium")
-    elif price_cat == "Mid-Range" and len(primary_traits) == 0:
-        primary_traits.append("Mid-Range")
+    elif price_cat == "Low-Temperature" and len(primary_traits) == 0:
+        primary_traits.append("Low-Temperature")
     
     # PRIORITY 3: Performance characteristics
     if efficiency_cat == "High-Efficiency":
@@ -389,10 +389,10 @@ def determine_cluster_archetype(profile, df_all):
             archetype = "Compact-Efficient"
         elif "Value" in primary_traits and "Efficient" in primary_traits:
             archetype = "Value-Efficient"
-        elif "Mid-Range" in primary_traits and "Efficient" in primary_traits:
+        elif "Low-Temperature" in primary_traits and "Efficient" in primary_traits:
             archetype = "Standard-Efficient"
-        elif "Mid-Range" in primary_traits:
-            archetype = "Mid-Range-Standard"
+        elif "Low-Temperature" in primary_traits:
+            archetype = "Low-Temperature-Standard"
         else:
             # Default to combining top 2 traits
             archetype = "-".join(primary_traits[:2])
@@ -457,9 +457,13 @@ def generate_buyer_persona(profile, cluster_name):
             "description": "Mainstream market seeking reliable performance with good efficiency at fair prices",
             "tags": ["mainstream residential", "balanced buyers", "standard homes", "practical choice", "middle market"]
         },
-        "Mid-Range-Standard": {
+        "Low-Temperature-Standard": {
             "description": "Average market segment seeking reliable, balanced performance across all metrics",
             "tags": ["mainstream market", "standard residential", "balanced requirements", "typical homeowners"]
+        },
+        "Low-Temperature": {
+            "description": "Heat pumps designed for low-temperature heating systems with standard performance characteristics",
+            "tags": ["low-temperature systems", "standard heating", "basic requirements", "general residential"]
         },
         "Standard": {
             "description": "Mainstream residential market seeking reliable, balanced performance",
@@ -538,7 +542,9 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
         for i in range(n_clusters):
             mask = df_clustered['Cluster'] == i
             cluster_data.append(feature_data[mask])
-            cluster_labels.append(cluster_names.get(i, f"C{i}"))
+            cluster_name = cluster_names.get(i, f"C{i}")
+            n_obs = mask.sum()
+            cluster_labels.append(f"{cluster_name}\n(n={n_obs})")
         
         bp = ax.boxplot(cluster_data, labels=cluster_labels, patch_artist=True)
         
@@ -562,16 +568,27 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     # Prepare data for violin plots
     feature_data_df = pd.DataFrame()
     for feature_name, feature_data in original_features.items():
+        # Create cluster labels with observation counts
+        cluster_labels_with_counts = []
+        for i in range(n_clusters):
+            cluster_name = cluster_names.get(i, f"C{i}")
+            n_obs = (df_clustered['Cluster'] == i).sum()
+            cluster_labels_with_counts.append(f"{cluster_name}\n(n={n_obs})")
+        
         temp_df = pd.DataFrame({
             'Value': feature_data,
-            'Cluster': df_clustered['Cluster'].map(lambda x: cluster_names.get(x, f"C{x}")),
+            'Cluster': df_clustered['Cluster'].map(lambda x: cluster_labels_with_counts[x]),
             'Feature': feature_name
         })
         feature_data_df = pd.concat([feature_data_df, temp_df], ignore_index=True)
     
     # Create color palette from the same colors used in box plots
-    cluster_order = [cluster_names.get(i, f"C{i}") for i in range(n_clusters)]
+    cluster_order = []
     color_palette = [colors[i] for i in range(n_clusters)]
+    for i in range(n_clusters):
+        cluster_name = cluster_names.get(i, f"C{i}")
+        n_obs = (df_clustered['Cluster'] == i).sum()
+        cluster_order.append(f"{cluster_name}\n(n={n_obs})")
     
     axes_flat = axes.flatten()
     for idx, (feature_name, _) in enumerate(original_features.items()):

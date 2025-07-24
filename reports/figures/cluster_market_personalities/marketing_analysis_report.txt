@@ -10,7 +10,7 @@ Analysis based on performance and pricing characteristics
 DETAILED MARKET SEGMENT ANALYSIS
 -----------------------------------
 
-1. MID-RANGE
+1. LOW-TEMPERATURE
 Market Share: 15.8% (110 products)
 Value Share: 17.2% of total market value
 Average Price: 9,690 EUR
@@ -58,7 +58,7 @@ Leading Configurations:
 
 ----------------------------------------
 
-3. MID-RANGE-STANDARD
+3. LOW-TEMPERATURE-STANDARD
 Market Share: 23.9% (166 products)
 Value Share: 21.0% of total market value
 Average Price: 7,822 EUR
@@ -134,7 +134,7 @@ STRATEGIC MARKET INSIGHTS
 ---------------------------
 Priority Market Segments (by volume):
 1. Budget-Compact: 31.0% market share
-2. Mid-Range-Standard: 23.9% market share
+2. Low-Temperature-Standard: 23.9% market share
 3. Retrofit-Premium: 17.7% market share
 
 Price Tier Analysis:
