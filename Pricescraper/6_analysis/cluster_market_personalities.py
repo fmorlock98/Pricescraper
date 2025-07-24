@@ -318,7 +318,7 @@ def determine_cluster_archetype(profile, df_all):
     HIGH_THRESHOLD = 0.67
     
     # Categorize characteristics
-    price_cat = "Budget" if price_pct < LOW_THRESHOLD else ("Premium" if price_pct > HIGH_THRESHOLD else "Low-Temperature")
+    price_cat = "Budget" if price_pct < LOW_THRESHOLD else ("Premium" if price_pct > HIGH_THRESHOLD else "Mid-Range")
     efficiency_cat = "High-Efficiency" if scop_pct > HIGH_THRESHOLD else ("Standard" if scop_pct > LOW_THRESHOLD else "Basic")
     # Fix noise categorization: low noise_pct = quiet (below average noise), high noise_pct = noisy (above average noise)
     noise_cat = "Quiet" if noise_pct < LOW_THRESHOLD else ("Standard" if noise_pct < HIGH_THRESHOLD else "Noisy")
@@ -337,8 +337,8 @@ def determine_cluster_archetype(profile, df_all):
         primary_traits.append("Budget")
     elif price_cat == "Premium":
         primary_traits.append("Premium")
-    elif price_cat == "Low-Temperature" and len(primary_traits) == 0:
-        primary_traits.append("Low-Temperature")
+    elif price_cat == "Mid-Range" and len(primary_traits) == 0:
+        primary_traits.append("Mid-Range")
     
     # PRIORITY 3: Performance characteristics
     if efficiency_cat == "High-Efficiency":
@@ -389,10 +389,10 @@ def determine_cluster_archetype(profile, df_all):
             archetype = "Compact-Efficient"
         elif "Value" in primary_traits and "Efficient" in primary_traits:
             archetype = "Value-Efficient"
-        elif "Low-Temperature" in primary_traits and "Efficient" in primary_traits:
+        elif "Mid-Range" in primary_traits and "Efficient" in primary_traits:
             archetype = "Standard-Efficient"
-        elif "Low-Temperature" in primary_traits:
-            archetype = "Low-Temperature-Standard"
+        elif "Mid-Range" in primary_traits:
+            archetype = "Mid-Range-Standard"
         else:
             # Default to combining top 2 traits
             archetype = "-".join(primary_traits[:2])
@@ -457,13 +457,9 @@ def generate_buyer_persona(profile, cluster_name):
             "description": "Mainstream market seeking reliable performance with good efficiency at fair prices",
             "tags": ["mainstream residential", "balanced buyers", "standard homes", "practical choice", "middle market"]
         },
-        "Low-Temperature-Standard": {
+        "Mid-Range-Standard": {
             "description": "Average market segment seeking reliable, balanced performance across all metrics",
             "tags": ["mainstream market", "standard residential", "balanced requirements", "typical homeowners"]
-        },
-        "Low-Temperature": {
-            "description": "Heat pumps designed for low-temperature heating systems with standard performance characteristics",
-            "tags": ["low-temperature systems", "standard heating", "basic requirements", "general residential"]
         },
         "Standard": {
             "description": "Mainstream residential market seeking reliable, balanced performance",
@@ -494,6 +490,13 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     
     n_clusters = df_clustered['Cluster'].nunique()
     
+    # Helper function to get display name for clusters
+    def get_display_name(cluster_name):
+        """Map cluster names to display names for plots"""
+        if cluster_name == "Mid-Range":
+            return "Low-Temperature"
+        return cluster_name
+    
     # 1. PCA Visualization
     plt.figure(figsize=(12, 10))
     
@@ -506,8 +509,9 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     for i in range(n_clusters):
         mask = df_clustered['Cluster'] == i
         cluster_name = cluster_names.get(i, f"Cluster {i}")
+        display_name = get_display_name(cluster_name)
         plt.scatter(X_pca[mask, 0], X_pca[mask, 1], 
-                   c=[colors[i]], label=f"{cluster_name} (n={mask.sum()})", 
+                   c=[colors[i]], label=f"{display_name} (n={mask.sum()})", 
                    alpha=0.7, s=50)
     
     plt.xlabel(f'First Principal Component ({pca.explained_variance_ratio_[0]:.1%} variance)', fontsize=14)
@@ -543,8 +547,9 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
             mask = df_clustered['Cluster'] == i
             cluster_data.append(feature_data[mask])
             cluster_name = cluster_names.get(i, f"C{i}")
+            display_name = get_display_name(cluster_name)
             n_obs = mask.sum()
-            cluster_labels.append(f"{cluster_name}\n(n={n_obs})")
+            cluster_labels.append(f"{display_name}\n(n={n_obs})")
         
         bp = ax.boxplot(cluster_data, labels=cluster_labels, patch_artist=True)
         
@@ -572,8 +577,9 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
         cluster_labels_with_counts = []
         for i in range(n_clusters):
             cluster_name = cluster_names.get(i, f"C{i}")
+            display_name = get_display_name(cluster_name)
             n_obs = (df_clustered['Cluster'] == i).sum()
-            cluster_labels_with_counts.append(f"{cluster_name}\n(n={n_obs})")
+            cluster_labels_with_counts.append(f"{display_name}\n(n={n_obs})")
         
         temp_df = pd.DataFrame({
             'Value': feature_data,
@@ -587,8 +593,9 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     color_palette = [colors[i] for i in range(n_clusters)]
     for i in range(n_clusters):
         cluster_name = cluster_names.get(i, f"C{i}")
+        display_name = get_display_name(cluster_name)
         n_obs = (df_clustered['Cluster'] == i).sum()
-        cluster_order.append(f"{cluster_name}\n(n={n_obs})")
+        cluster_order.append(f"{display_name}\n(n={n_obs})")
     
     axes_flat = axes.flatten()
     for idx, (feature_name, _) in enumerate(original_features.items()):
@@ -622,6 +629,7 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
         
         cluster_data = df_clustered[df_clustered['Cluster'] == cluster_id]
         cluster_name = cluster_names.get(cluster_id, f"Cluster {cluster_id}")
+        display_name = get_display_name(cluster_name)
         
         # Calculate normalized values
         values = []
@@ -672,7 +680,7 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(radar_features)
         ax.set_ylim(0, 1)
-        ax.set_title(f'{cluster_name}\n(n = {len(cluster_data)})', fontweight='bold')
+        ax.set_title(f'{display_name}\n(n = {len(cluster_data)})', fontweight='bold')
         ax.grid(True)
     
     # Add market segment pie chart in the bottom right cell
@@ -683,7 +691,7 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
         
         # Create pie chart for market segments
         cluster_sizes = df_clustered['Cluster'].value_counts().sort_index()
-        cluster_labels_pie = [cluster_names.get(i, f"Cluster {i}") for i in cluster_sizes.index]
+        cluster_labels_pie = [get_display_name(cluster_names.get(i, f"Cluster {i}")) for i in cluster_sizes.index]
         
         ax_market.pie(cluster_sizes.values, labels=cluster_labels_pie, autopct='%1.1f%%', 
                      colors=colors[:len(cluster_sizes)], startangle=90)
@@ -703,9 +711,10 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     for i in range(n_clusters):
         mask = df_clustered['Cluster'] == i
         cluster_name = cluster_names.get(i, f"Cluster {i}")
+        display_name = get_display_name(cluster_name)
         plt.scatter(df_clustered[mask]['SCOP'], 
                    df_clustered[mask]['Price'], 
-                   c=[colors[i]], label=cluster_name, 
+                   c=[colors[i]], label=display_name, 
                    alpha=0.7, s=60)
     
     plt.xlabel('SCOP (Efficiency)', fontsize=12)
@@ -721,7 +730,7 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
     plt.figure(figsize=(12, 8))
     
     cluster_sizes = df_clustered['Cluster'].value_counts().sort_index()
-    cluster_labels_pie = [cluster_names.get(i, f"Cluster {i}") for i in cluster_sizes.index]
+    cluster_labels_pie = [get_display_name(cluster_names.get(i, f"Cluster {i}")) for i in cluster_sizes.index]
     
     plt.pie(cluster_sizes.values, labels=cluster_labels_pie, autopct='%1.1f%%', 
             colors=colors[:len(cluster_sizes)], startangle=90)
@@ -736,6 +745,13 @@ def create_cluster_visualizations(df_clustered, X_scaled, feature_names, cluster
 def create_marketing_analysis_report(df_clustered, cluster_names, figures_dir):
     """Create comprehensive marketing analysis report without configuration insights"""
     print(f"\nCreating marketing analysis report...")
+    
+    # Helper function to get display name for clusters
+    def get_display_name(cluster_name):
+        """Map cluster names to display names for reports"""
+        if cluster_name == "Mid-Range":
+            return "Low-Temperature"
+        return cluster_name
     
     report_path = figures_dir / "marketing_analysis_report.txt"
     
@@ -759,13 +775,14 @@ def create_marketing_analysis_report(df_clustered, cluster_names, figures_dir):
         for cluster_id in sorted(df_clustered['Cluster'].unique()):
             cluster_data = df_clustered[df_clustered['Cluster'] == cluster_id]
             cluster_name = cluster_names[cluster_id]
+            display_name = get_display_name(cluster_name)
             
             # Basic metrics
             market_share = len(cluster_data) / len(df_clustered) * 100
             value_share = cluster_data['Price'].sum() / total_value * 100
             avg_price = cluster_data['Price'].mean()
             
-            f.write(f"{cluster_id + 1}. {cluster_name.upper()}\n")
+            f.write(f"{cluster_id + 1}. {display_name.upper()}\n")
             f.write(f"Market Share: {market_share:.1f}% ({len(cluster_data)} products)\n")
             f.write(f"Value Share: {value_share:.1f}% of total market value\n")
             f.write(f"Average Price: {avg_price:,.0f} EUR\n")
@@ -810,7 +827,7 @@ def create_marketing_analysis_report(df_clustered, cluster_names, figures_dir):
         f.write("-"*27 + "\n")
         
         # Identify largest segments
-        segment_sizes = [(cluster_names[cid], len(df_clustered[df_clustered['Cluster'] == cid])) 
+        segment_sizes = [(get_display_name(cluster_names[cid]), len(df_clustered[df_clustered['Cluster'] == cid])) 
                         for cid in df_clustered['Cluster'].unique()]
         segment_sizes.sort(key=lambda x: x[1], reverse=True)
         
@@ -964,11 +981,19 @@ def main():
     print("="*80)
     print(f"Identified {selected_k} distinct market personalities:")
     
+    # Helper function to get display name for clusters
+    def get_display_name(cluster_name):
+        """Map cluster names to display names for summary"""
+        if cluster_name == "Mid-Range":
+            return "Low-Temperature"
+        return cluster_name
+    
     # Analyze market characteristics
     total_market_value = df_final['Price'].sum()
     
     for cluster_id in sorted(cluster_names_final.keys()):
         name = cluster_names_final[cluster_id]
+        display_name = get_display_name(name)
         cluster_data = df_final[df_final['Cluster'] == cluster_id]
         size = len(cluster_data)
         market_share = size / len(df_final) * 100
@@ -976,7 +1001,7 @@ def main():
         value_share = cluster_value / total_market_value * 100
         avg_price = cluster_data['Price'].mean()
         
-        print(f"\n{cluster_id + 1}. {name.upper()}")
+        print(f"\n{cluster_id + 1}. {display_name.upper()}")
         print(f"   Market Share: {market_share:.1f}% ({size} products)")
         print(f"   Value Share: {value_share:.1f}% of total market value")
         print(f"   Average Price: {avg_price:,.0f} EUR")
